@@ -4,9 +4,6 @@ service_name='com.kanata'
 uid=$(id -u $(whoami))
 service_target="gui/$uid/$service_name"
 
-[[ -n $2 ]] && kanata_binary="$(realpath $2)" || echo "Incorrect/Missing binary path"
-[[ -n $3 ]] && kanata_config="$(realpath $3)" || echo "Incorrect/Missing config path"
-
 kanata_plist="$HOME/Library/LaunchAgents/$service_name.plist"
 stderr_log='/private/tmp/kanata.err.log'
 kanata_sudoers='/private/etc/sudoers.d/kanata'
@@ -22,18 +19,19 @@ function install {
   if [[ is_service_installed -eq 0 ]] then
     echo "Kanata service is already installed."
   else
-    # com.kanata.plist launchd config
-    cat ./$service_name.plist | sed "s~{kanata_binary}~$kanata_binary~g" | sed "s~{kanata_config}~$kanata_config~g" 1> ./com.kanata.plist.tmp
-    sudo chmod 644 $kanata_plist
-    sudo cp -vp ./com.kanata.plist.tmp $kanata_plist && rm -f ./com.kanata.plist.tmp
+      # com.kanata.plist launchd config
+      cat ./$service_name.plist | sed "s~{kanata_binary}~$kanata_binary~g" | sed "s~{kanata_config}~$kanata_config~g" 1> ./$service_name.plist.tmp
+      sudo chmod 644 ./$service_name.plist.tmp
+      sudo cp -vp ./$service_name.plist.tmp $kanata_plist && rm -f ./$service_name.plist.tmp
 
-    # sudoers.d kanata
-    sed "s~{kanata_binary}~$kanata_binary~g" <<< "$(whoami) ALL=(root) NOPASSWD: $kanata_binary --cfg $kanata_config" 1>  ./kanata.tmp
-    sudo chown root:wheel ./kanata.tmp
-    sudo chmod 600 ./kanata.tmp
-    sudo cp -vp ./kanata.tmp $kanata_sudoers && rm -rf ./kanata.tmp
+      # sudoers.d kanata
+      echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $kanata_binary) --cfg $kanata_config" 1> ./kanata.tmp
+      sudo chown root:wheel ./kanata.tmp
+      sudo chmod 600 ./kanata.tmp
+      sudo cp -vp ./kanata.tmp $kanata_sudoers && rm -rf ./kanata.tmp
 
-    echo "Installed service."
+      printf "\n"
+      echo "Installed service."
   fi
 }
 
@@ -48,6 +46,7 @@ function start {
       launchctl enable $service_target
       launchctl bootstrap gui/$uid $kanata_plist && echo "Kanata service starting..."
       sleep 2
+      echo "Started."
     fi
   fi
 }
@@ -61,6 +60,7 @@ function stop {
       launchctl bootout gui/$uid $kanata_plist
       read -d "," -s -t 2 --
       launchctl disable $service_target
+      echo "Suspended."
     else
       launchctl kill 9 $service_target &> /dev/null
     fi
@@ -102,8 +102,10 @@ function uninstall {
     echo "Service isn't installed."
   else
     stop
+    echo "Deleting..."
     sudo rm -vf $kanata_plist
     sudo rm -vf $kanata_sudoers
+    printf "\n"
     echo "Uninstalled service"
   fi
 }
@@ -122,4 +124,14 @@ Available commands:
     7. debug - concatenates the stderr.log to stdout"
 }
 
-[[ -z $1 ]] && help || $1 $2 $3
+
+if [[ $# -eq 0 ]]; then
+  help
+elif [[ $# -eq 3 ]]; then
+  kanata_binary=$(realpath $2)
+  kanata_config=$(realpath $3)
+  $1
+else
+  $1
+fi
+
