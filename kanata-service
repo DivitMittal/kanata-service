@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+#################### Prerequisites
+# kanata binary must be at $HOME/.local/bin/kanata
+# kanata configuration must bet at $HOME/.config/kanata/custom.kbd
+
+service_name='com.kanata'
+uid=$(id -u $(whoami))
+service_target="gui/$uid/$service_name"
+
+kanata_plist="$HOME/Library/LaunchAgents/$service_name.plist"
+stderr_log='/private/tmp/kanata.err.log'
+
+is_bootstrapped="$(launchctl print $service_target &> /dev/null; echo $?)"
+kanata_sudoers='/private/etc/sudoers.d/kanata'
+is_service_installed="$([[ -f $kanata_plist && -f $kanata_sudoers ]] && echo 0 || echo 11)"
+
+function install {
+  if [[ is_service_installed -eq 0 ]] then
+    echo "Kanata service is already installed."
+  else
+    sudo cat ./$service_name.plist | sed "s~{HOME}~$HOME~g" 1> $kanata_plist
+    sed "s~{HOME}~$HOME/.local/bin/kanata~g" <<< "$(whoami) ALL=(root) NOPASSWD: $HOME/.local/bin/kanata --cfg $HOME/.config/kanata/custom.kbd" 1>  ./kanata
+    sudo chown root:wheel ./kanata
+    sudo chmod 600 ./kanata
+    sudo cp -p ./kanata $kanata_sudoers
+    rm -f ./kanata
+    echo "Installed service."
+  fi
+}
+
+function uninstall {
+  if [[ $is_service_installed -eq 0 ]] then
+    sudo rm -vf $kanata_plist
+    sudo rm -vf $kanata_sudoers
+    echo "Uninstalled service"
+  else
+    echo "Service isn't installed."
+  fi
+}
+
+function start {
+  [[ -f $stderr_log ]] && rm -f $stderr_log
+  if [[ $is_service_installed -eq 0 ]] then
+    if [[ is_bootstrapped -eq 0 ]] then
+      launchctl kickstart $service_target
+    else
+      launchctl enable $service_target
+      launchctl bootstrap gui/$uid $kanata_plist && echo "Kanata service starting..."
+      sleep 5
+    fi
+  else
+    echo "Service isn't installed."
+  fi
+}
+
+function stop {
+  if [[ is_service_installed -eq 0 ]] then
+    if [[ is_bootstrapped -eq 0 ]] then
+      launchctl bootout gui/$uid $kanata_plist && echo "Service stopped."
+      launchctl disable $service_target
+    else
+      launchctl kill 9 $service_target &> /dev/null
+    fi
+  else
+    echo "Service isn't installed."
+  fi
+}
+
+function restart {
+  if [[ is_service_installed -eq 0 ]] then
+    if [[ is_bootstrapped -eq 0 ]] then
+      [[ -f $stderr_log ]] && rm -f $stderr_log
+      launchctl kickstart -k gui/$uid/$service_name && echo "Service restarting..."
+    else
+      stop
+      start
+    fi
+  else
+    echo "Service isn't installed."
+  fi
+}
+
+function debug {
+  if [[ is_service_installed -eq 0 ]] then
+    [[ -f $stderr_log ]] && tail -f $stderr_log || echo "No errors"
+  else
+    echo "Service isn't installed."
+  fi
+}
+
+function info {
+  if [[ is_service_installed -eq 0 ]] then
+    [[ is_bootstrapped -eq 0 ]] && launchctl print $service_target || echo "Service not running."
+  else
+    echo "Service isn't installed"
+  fi
+}
+
+if [[ -z $1 ]] then
+  echo "Available commands: install, uninstall, start, stop, restart, info, debug."
+else
+  $1
+fi
+
