@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 service_name='com.kanata'
-uid=$(id -u $(whoami))
+user=$(whoami)
+uid=$(id -u user)
 service_target="gui/$uid/$service_name"
 
 kanata_plist="$HOME/Library/LaunchAgents/$service_name.plist"
@@ -25,7 +26,7 @@ function install {
       sudo cp -vp ./$service_name.plist.tmp $kanata_plist && rm -f ./$service_name.plist.tmp
 
       # sudoers.d kanata
-      echo "$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $kanata_binary) --cfg $kanata_config" 1> ./kanata.tmp
+      echo "$user ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $kanata_binary) --cfg $kanata_config" 1> ./kanata.tmp
       sudo chown root:wheel ./kanata.tmp
       sudo chmod 600 ./kanata.tmp
       sudo cp -vp ./kanata.tmp $kanata_sudoers && rm -rf ./kanata.tmp
