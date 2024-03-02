@@ -115,6 +115,7 @@ function help {
   echo "Usage:
     Installation: kanata-service install <kanata_binary> <kanata_config>
     Other: kanata-service <command>
+
 Available commands:
     1. install - installs the launchd com.kanata.plist file & and adds kanata to sudoers.d
     2. uninstall - deletes the launchd com.kanata.plist file & removes the kanata sudoers.d
@@ -125,35 +126,27 @@ Available commands:
     7. debug - concatenates the stderr.log to stdout"
 }
 
+function invalid-syntax {
+  echo 'Invalid syntax'
+  printf '\n'
+  help
+}
 
 case $# in
   0)
-    help
-    ;;
+    help ;;
   1)
-    if [[ "$1" != "install" ]]; then
-      $1
-    else
-      echo 'Invalid syntax'
-      printf '\n'
-      help
-    fi
-    ;;
+    [[ "$1" != "install" ]] && $1 || $1 ;;
   3)
     if [[ "$1" == "install" ]]; then
       kanata_binary=$(realpath $2)
       kanata_config=$(realpath $3)
       $1
     else
-      echo 'Invalid syntax'
-      printf '\n'
-      help
+      invalid-syntax
     fi
     ;;
   *)
-    echo 'Invalid syntax'
-    printf '\n'
-    help
-    ;;
+    invalid-syntax ;;
 esac
 
