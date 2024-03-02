@@ -10,7 +10,7 @@
         <string>/usr/local/bin/dash</string>
     </dict>
     <key>Label</key>
-    <string>com.kanata</string>
+    <string>rs.kanata</string>
     <key>ProgramArguments</key>
     <array>
         <string>sudo</string>

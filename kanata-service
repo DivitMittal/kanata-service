@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-
-service_name='com.kanata'
 user=$(whoami)
-uid=$(id -u user)
+uid=$(id -u $user)
+
+service_name='rs.kanata'
 service_target="gui/$uid/$service_name"
+service_plist="$HOME/Library/LaunchAgents/$service_name.plist"
+stderr_log="/private/tmp/$service_name.err.log"
 
-kanata_plist="$HOME/Library/LaunchAgents/$service_name.plist"
-stderr_log='/private/tmp/kanata.err.log'
 kanata_sudoers='/private/etc/sudoers.d/kanata'
-
+is_service_installed=$([[ -f $service_plist && -f $kanata_sudoers ]] &> /dev/null; echo $?)
 is_bootstrapped=$(launchctl print $service_target &> /dev/null; echo $?)
-is_service_installed=$([[ -f $kanata_plist && -f $kanata_sudoers ]] &> /dev/null; echo $?)
 
 function clear-logs {
   [[ -f $stderr_log ]] && rm -f $stderr_log
@@ -20,12 +19,12 @@ function install {
   if [[ is_service_installed -eq 0 ]] then
     echo "Kanata service is already installed."
   else
-      # com.kanata.plist launchd config
+      # rs.kanata.plist launchd config
       cat ./$service_name.plist | sed "s~{kanata_binary}~$kanata_binary~g" | sed "s~{kanata_config}~$kanata_config~g" 1> ./$service_name.plist.tmp
       sudo chmod 644 ./$service_name.plist.tmp
-      sudo cp -vp ./$service_name.plist.tmp $kanata_plist && rm -f ./$service_name.plist.tmp
+      sudo cp -vp ./$service_name.plist.tmp $service_plist && rm -f ./$service_name.plist.tmp
 
-      # sudoers.d kanata
+      # kanata file in sudoers.d
       echo "$user ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $kanata_binary) --cfg $kanata_config" 1> ./kanata.tmp
       sudo chown root:wheel ./kanata.tmp
       sudo chmod 600 ./kanata.tmp
@@ -45,7 +44,7 @@ function start {
       launchctl kickstart $service_target
     else
       launchctl enable $service_target
-      launchctl bootstrap gui/$uid $kanata_plist && echo "Kanata service starting..."
+      launchctl bootstrap gui/$uid $service_plist && echo "Kanata service starting..."
       sleep 2
       echo "Started."
     fi
@@ -58,7 +57,7 @@ function stop {
   else
     if [[ is_bootstrapped -eq 0 ]] then
       echo "Suspending the server..."
-      launchctl bootout gui/$uid $kanata_plist
+      launchctl bootout gui/$uid $service_plist
       read -d "," -s -t 2 --
       launchctl disable $service_target
       echo "Suspended."
@@ -84,7 +83,7 @@ function restart {
 
 function debug {
   if [[ is_service_installed -eq 0 ]] then
-    [[ -f $stderr_log ]] && tail -f $stderr_log || echo "No errors reported yet."
+    [[ -f $stderr_log ]] && tail -n 100 -f $stderr_log || echo "No errors reported yet."
   else
     echo "Service isn't installed."
   fi
@@ -104,8 +103,9 @@ function uninstall {
   else
     stop
     echo "Deleting..."
-    sudo rm -vf $kanata_plist
+    sudo rm -vf $service_plist
     sudo rm -vf $kanata_sudoers
+    clear-logs
     printf "\n"
     echo "Uninstalled service"
   fi
@@ -126,13 +126,34 @@ Available commands:
 }
 
 
-if [[ $# -eq 0 ]]; then
-  help
-elif [[ $# -eq 3 ]]; then
-  kanata_binary=$(realpath $2)
-  kanata_config=$(realpath $3)
-  $1
-else
-  $1
-fi
+case $# in
+  0)
+    help
+    ;;
+  1)
+    if [[ "$1" != "install" ]]; then
+      $1
+    else
+      echo 'Invalid syntax'
+      printf '\n'
+      help
+    fi
+    ;;
+  3)
+    if [[ "$1" == "install" ]]; then
+      kanata_binary=$(realpath $2)
+      kanata_config=$(realpath $3)
+      $1
+    else
+      echo 'Invalid syntax'
+      printf '\n'
+      help
+    fi
+    ;;
+  *)
+    echo 'Invalid syntax'
+    printf '\n'
+    help
+    ;;
+esac
 
