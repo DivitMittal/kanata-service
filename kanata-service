@@ -11,7 +11,7 @@ kanata_sudoers='/private/etc/sudoers.d/kanata'
 is_service_installed=$([[ -f $service_plist && -f $kanata_sudoers ]] &> /dev/null; echo $?)
 is_bootstrapped=$(launchctl print $service_target &> /dev/null; echo $?)
 
-function clear-logs {
+clear-logs () {
   [[ -f $stderr_log ]] && rm -f $stderr_log
 }
 
@@ -126,27 +126,30 @@ Available commands:
     7. debug - concatenates the stderr.log to stdout"
 }
 
-function invalid-syntax {
+invalid-syntax () {
   echo 'Invalid syntax'
   printf '\n'
   help
 }
 
-case $# in
-  0)
-    help ;;
-  1)
-    [[ "$1" != "install" ]] && $1 || $1 ;;
-  3)
-    if [[ "$1" == "install" ]]; then
-      kanata_binary=$(realpath $2)
-      kanata_config=$(realpath $3)
-      $1
-    else
-      invalid-syntax
-    fi
-    ;;
-  *)
-    invalid-syntax ;;
-esac
+main () {
+  case $# in
+    0)
+      help ;;
+    1)
+      [[ "$1" != "install" ]] && $1 || invalid-syntax ;;
+    3)
+      if [[ "$1" == "install" ]]; then
+        kanata_binary=$(realpath $2)
+        kanata_config=$(realpath $3)
+        $1
+      else
+        invalid-syntax
+      fi
+      ;;
+    *)
+      invalid-syntax ;;
+  esac
+}
 
+main $1 $2 $3
