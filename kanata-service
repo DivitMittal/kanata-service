@@ -11,10 +11,6 @@ kanata_sudoers='/private/etc/sudoers.d/kanata'
 is_service_installed=$([[ -f $service_plist && -f $kanata_sudoers ]] &> /dev/null; echo $?)
 is_bootstrapped=$(launchctl print $service_target &> /dev/null; echo $?)
 
-clear-logs () {
-  [[ -f $stderr_log ]] && rm -f $stderr_log
-}
-
 function install {
   if [[ is_service_installed -eq 0 ]] then
     echo "Kanata service is already installed."
@@ -33,6 +29,10 @@ function install {
       printf "\n"
       echo "Installed service."
   fi
+}
+
+clear-logs () {
+  [[ -f $stderr_log ]] && rm -f $stderr_log
 }
 
 function start {
