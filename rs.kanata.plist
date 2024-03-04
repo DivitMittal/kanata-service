@@ -28,9 +28,9 @@
  	     <true/>
     </dict>
     <key>StandardOutPath</key>
-    <string>/dev/null</string>
+    <string>{stdout_log}</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/kanata.err.log</string>
+    <string>{stderr_log}</string>
     <key>ProcessType</key>
     <string>Interactive</string>
     <key>Nice</key>

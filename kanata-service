@@ -5,7 +5,8 @@ uid=$(id -u $user)
 service_name='rs.kanata'
 service_target="gui/$uid/$service_name"
 service_plist="$HOME/Library/LaunchAgents/$service_name.plist"
-stderr_log="/private/tmp/$service_name.err.log"
+stderr_log="/private/tmp/$service_name.err.log" && touch $stderr_log
+stdout_log="/private/tmp/$service_name.out.log" && touch $stdout_log
 
 kanata_sudoers='/private/etc/sudoers.d/kanata'
 is_service_installed=$([[ -f $service_plist && -f $kanata_sudoers ]] &> /dev/null; echo $?)
@@ -16,7 +17,7 @@ function install {
     echo "Kanata service is already installed."
   else
       # rs.kanata.plist launchd config
-      cat ./$service_name.plist | sed "s~{kanata_binary}~$kanata_binary~g" | sed "s~{kanata_config}~$kanata_config~g" 1> ./$service_name.plist.tmp
+      cat ./$service_name.plist | sed "s~{kanata_binary}~$kanata_binary~g" | sed "s~{kanata_config}~$kanata_config~g" | sed "s~{stderr_log}~$stderr_log~g" | sed "s~{stdout_log}~$stdout_log~g" 1> ./$service_name.plist.tmp
       sudo chmod 644 ./$service_name.plist.tmp
       sudo cp -vp ./$service_name.plist.tmp $service_plist && rm -f ./$service_name.plist.tmp
 
@@ -32,7 +33,7 @@ function install {
 }
 
 clear-logs () {
-  [[ -f $stderr_log ]] && rm -f $stderr_log
+  [[ -f $stderr_log ]] && truncate -s 0 $stderr_log
 }
 
 function start {
@@ -83,7 +84,7 @@ function restart {
 
 function debug {
   if [[ is_service_installed -eq 0 ]] then
-    [[ -f $stderr_log ]] && tail -n 100 -f $stderr_log || echo "No errors reported yet."
+    tail -n 50 -f $stderr_log
   else
     echo "Service isn't installed."
   fi
